@@ -151,10 +151,10 @@ class Refine(nn.Module):
 class Decoder(nn.Module):
     def __init__(self, mdim):
         super(Decoder, self).__init__()
-        self.convFM = nn.Conv2d(128, mdim, kernel_size=(3, 3), padding=(1, 1), stride=1)
+        self.convFM = nn.Conv2d(1024, mdim, kernel_size=(3, 3), padding=(1, 1), stride=1)
         self.ResMM = ResBlock(mdim, mdim)
-        self.RF3 = Refine(128, mdim)
-        self.RF2 = Refine(64, mdim)
+        self.RF3 = Refine(512, 256)
+        self.RF2 = Refine(256, mdim)
 
         self.pred2 = nn.Conv2d(mdim, 2, kernel_size=(3, 3), padding=(1, 1), stride=1)
 
@@ -262,11 +262,11 @@ class SwiftNet(nn.Module):
         self.LAE = LAE()
         self.Encoder = Encoder()
 
-        self.KV_M_r4 = KeyValue(256, keydim=32, valdim=128)
-        self.KV_Q_r4 = KeyValue(256, keydim=32, valdim=128)
+        self.KV_M_r4 = KeyValue(1024, keydim=128, valdim=512)
+        self.KV_Q_r4 = KeyValue(1024, keydim=128, valdim=512)
 
         self.Memory = Memory()
-        self.Decoder = Decoder(64)
+        self.Decoder = Decoder(256)
         self.aspp = ASPP()
 
     def Pad_memory(self, mems, num_objects, K):

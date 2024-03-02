@@ -5,7 +5,7 @@ import numpy as np
 from PIL import Image
 
 
-class DAVIS(object):
+class DAVIS:
     SUBSET_OPTIONS = ["train", "val", "test-dev", "test-challenge"]
     TASKS = ["semi-supervised", "unsupervised"]
     DATASET_WEB = "https://davischallenge.org/davis2017/code.html"
