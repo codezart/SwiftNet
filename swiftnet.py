@@ -370,16 +370,7 @@ class SwiftNet(nn.Module):
         return logit, r4, r3, r2, c1
 
     def forward(self, *args, **kwargs):
-        # Determine which method to call based on the number of arguments
-        if len(args) + len(kwargs) > 4:
-            # Ensure all required arguments are passed to memorize
-            # You need to adjust the line below according to how you expect to receive the arguments
-            # For example, if args are always in the order: frame, masks, r4, r3, r2, c1, num_objects
-            if len(args) >= 7:
-                return self.memorize(*args[:7])  # Adjust indices as needed
-            else:
-                # Handle case where args do not match expected count
-                raise ValueError("Not enough arguments provided to memorize method")
-        else:
-            # Call segment with the provided arguments
+        if len(args) + len(kwargs) <= 4:
             return self.segment(*args, **kwargs)
+        else:
+            return self.memorize(*args, **kwargs)
