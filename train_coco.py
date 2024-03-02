@@ -91,7 +91,7 @@ Testloader = DAVIS_MO_Test(
 )
 
 
-model = nn.DataParallel(SwiftNet(args.backbone))
+model = nn.DataParallel(SwiftNet())
 
 if torch.cuda.is_available():
     model.cuda()
