@@ -370,7 +370,7 @@ class SwiftNet(nn.Module):
         return logit, r4, r3, r2, c1
 
     def forward(self, *args, **kwargs):
-        if len(args) + len(kwargs) <= 4:
+        if 'num_objects' in kwargs or (len(args) > 3 and args[3] is not None):
             return self.segment(*args, **kwargs)
         else:
             return self.memorize(*args, **kwargs)
