@@ -4,7 +4,7 @@ import cv2
 
 
 def db_eval_iou(annotation, segmentation, void_pixels=None):
-    """ Compute region similarity as the Jaccard Index.
+    """Compute region similarity as the Jaccard Index.
     Arguments:
         annotation   (ndarray): binary annotation   map.
         segmentation (ndarray): binary segmentation map.
@@ -13,21 +13,27 @@ def db_eval_iou(annotation, segmentation, void_pixels=None):
     Return:
         jaccard (float): region similarity
     """
-    assert annotation.shape == segmentation.shape, \
-        f'Annotation({annotation.shape}) and segmentation:{segmentation.shape} dimensions do not match.'
+    assert (
+        annotation.shape == segmentation.shape
+    ), f"Annotation({annotation.shape}) and segmentation:{segmentation.shape} dimensions do not match."
     annotation = annotation.astype(np.bool)
     segmentation = segmentation.astype(np.bool)
 
     if void_pixels is not None:
-        assert annotation.shape == void_pixels.shape, \
-            f'Annotation({annotation.shape}) and void pixels:{void_pixels.shape} dimensions do not match.'
+        assert (
+            annotation.shape == void_pixels.shape
+        ), f"Annotation({annotation.shape}) and void pixels:{void_pixels.shape} dimensions do not match."
         void_pixels = void_pixels.astype(np.bool)
     else:
         void_pixels = np.zeros_like(segmentation)
 
     # Intersection between all sets
-    inters = np.sum((segmentation & annotation) & np.logical_not(void_pixels), axis=(-2, -1))
-    union = np.sum((segmentation | annotation) & np.logical_not(void_pixels), axis=(-2, -1))
+    inters = np.sum(
+        (segmentation & annotation) & np.logical_not(void_pixels), axis=(-2, -1)
+    )
+    union = np.sum(
+        (segmentation | annotation) & np.logical_not(void_pixels), axis=(-2, -1)
+    )
 
     j = inters / union
     if j.ndim == 0:
@@ -45,12 +51,31 @@ def db_eval_boundary(annotation, segmentation, void_pixels=None, bound_th=0.008)
         n_frames = annotation.shape[0]
         f_res = np.zeros(n_frames)
         for frame_id in range(n_frames):
-            void_pixels_frame = None if void_pixels is None else void_pixels[frame_id, :, :, ]
-            f_res[frame_id] = f_measure(segmentation[frame_id, :, :, ], annotation[frame_id, :, :], void_pixels_frame, bound_th=bound_th)
+            void_pixels_frame = (
+                None
+                if void_pixels is None
+                else void_pixels[
+                    frame_id,
+                    :,
+                    :,
+                ]
+            )
+            f_res[frame_id] = f_measure(
+                segmentation[
+                    frame_id,
+                    :,
+                    :,
+                ],
+                annotation[frame_id, :, :],
+                void_pixels_frame,
+                bound_th=bound_th,
+            )
     elif annotation.ndim == 2:
         f_res = f_measure(segmentation, annotation, void_pixels, bound_th=bound_th)
     else:
-        raise ValueError(f'db_eval_boundary does not support tensors with {annotation.ndim} dimensions')
+        raise ValueError(
+            f"db_eval_boundary does not support tensors with {annotation.ndim} dimensions"
+        )
     return f_res
 
 
@@ -74,8 +99,11 @@ def f_measure(foreground_mask, gt_mask, void_pixels=None, bound_th=0.008):
     else:
         void_pixels = np.zeros_like(foreground_mask).astype(np.bool)
 
-    bound_pix = bound_th if bound_th >= 1 else \
-        np.ceil(bound_th * np.linalg.norm(foreground_mask.shape))
+    bound_pix = (
+        bound_th
+        if bound_th >= 1
+        else np.ceil(bound_th * np.linalg.norm(foreground_mask.shape))
+    )
 
     # Get the pixel boundaries of both masks
     fg_boundary = _seg2bmap(foreground_mask * np.logical_not(void_pixels))
@@ -178,12 +206,12 @@ def _seg2bmap(seg, width=None, height=None):
     return bmap
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     from davis2017.davis import DAVIS
     from davis2017.results import Results
 
-    dataset = DAVIS(root='input_dir/ref', subset='val', sequences='aerobatics')
-    results = Results(root_dir='examples/osvos')
+    dataset = DAVIS(root="input_dir/ref", subset="val", sequences="aerobatics")
+    results = Results(root_dir="examples/osvos")
     # Test timing F measure
     for seq in dataset.get_sequences():
         all_gt_masks, _, all_masks_id = dataset.get_all_masks(seq, True)
@@ -191,7 +219,9 @@ if __name__ == '__main__':
         all_res_masks = results.read_masks(seq, all_masks_id)
         f_metrics_res = np.zeros(all_gt_masks.shape[:2])
         for ii in range(all_gt_masks.shape[0]):
-            f_metrics_res[ii, :] = db_eval_boundary(all_gt_masks[ii, ...], all_res_masks[ii, ...])
+            f_metrics_res[ii, :] = db_eval_boundary(
+                all_gt_masks[ii, ...], all_res_masks[ii, ...]
+            )
 
     # Run using to profile code: python -m cProfile -o f_measure.prof metrics.py
     #                            snakeviz f_measure.prof
