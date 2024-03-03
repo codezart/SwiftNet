@@ -537,7 +537,7 @@ class Coco_MO_Train(data.Dataset):
 
             sampled_f_m = []
             for sampled_object in sampled_objects:
-                ob_img_path = sampled_object["url"]
+                ob_img_path = sampled_object["coco_url"]
                 ob_frame = np.array(self.convrgb(io.imread(ob_img_path, plugin='matplotlib')))
                 h, w, _ = ob_frame.shape
                 ob_segs = sampled_object["segmentation"]
