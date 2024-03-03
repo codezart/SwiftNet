@@ -2,6 +2,7 @@ import os
 import os.path as osp
 import numpy as np
 from PIL import Image
+from skimage import io
 from torchvision import transforms
 import torch
 import torchvision
@@ -373,7 +374,7 @@ class Coco_MO_Train(data.Dataset):
 
         # print(os.path.join(self.image_dir,image + '.jpg'),os.path.join(self.mask_dir,image + '.png'))
         frame = np.array(
-            Image.open(os.path.join(self.image_dir, image_name)).convert("RGB")
+            io.imread(url, plugin='matplotlib').convert("RGB")
         )
         h, w, _ = frame.shape
         mask = np.zeros((h, w, 20)).astype(np.uint8)
@@ -424,7 +425,7 @@ class Coco_MO_Train(data.Dataset):
                         self.image_dir,
                         str(sampled_object["image_id"]).zfill(12) + ".jpg",
                     )
-                    ob_frame = np.array(Image.open(ob_img_path).convert("RGB"))
+                    ob_frame = np.array(io.imread(url, plugin='matplotlib').convert("RGB"))
                     h, w, _ = ob_frame.shape
                     ob_segs = sampled_object["segmentation"]
                     ob_bbox = sampled_object["bbox"]
@@ -526,9 +527,7 @@ class Coco_MO_Train(data.Dataset):
 
             sampled_f_m = []
             for sampled_object in sampled_objects:
-                ob_img_path = os.path.join(
-                    self.image_dir, str(sampled_object["image_id"]).zfill(12) + ".jpg"
-                )
+                ob_img_path = sampled_object["url"]
                 ob_frame = np.array(Image.open(ob_img_path).convert("RGB"))
                 h, w, _ = ob_frame.shape
                 ob_segs = sampled_object["segmentation"]
