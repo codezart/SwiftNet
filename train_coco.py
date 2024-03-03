@@ -131,7 +131,7 @@ for iter_ in range(args.total_iter):
 
     Es = torch.zeros_like(Ms)
     Es[:, :, 0] = Ms[:, :, 0]
-
+    print(num_objects)
     n1_key, n1_value = model(Fs[:, :, 0], Es[:, :, 0], torch.tensor([num_objects]))
     n2_logit = model(Fs[:, :, 1], n1_key, n1_value, torch.tensor([num_objects]))
 
