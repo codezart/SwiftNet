@@ -3,6 +3,7 @@ import os.path as osp
 import numpy as np
 from PIL import Image
 from skimage import io
+from skimage.color import rgba2rgb, gray2rgb
 from torchvision import transforms
 import torch
 import torchvision
@@ -69,6 +70,15 @@ class Coco_MO_Train(data.Dataset):
         for n in range(masks.shape[0]):
             Ms[:, n] = self.To_onehot(masks[n])
         return Ms
+
+    def convrgb(self, image):
+        if image.shape[-1] == 4:
+            image_rgb = rgba2rgb(image)
+        elif len(image.shape) == 2 or image.shape[-1] == 1:  # Grayscale
+            image_rgb = gray2rgb(image)
+        else:
+            image_rgb = image  # Already RGB
+        return image_rgb
 
     def Augmentation(self, image, label, sampled_f_m=None):
         # Scaling
@@ -374,7 +384,7 @@ class Coco_MO_Train(data.Dataset):
 
         # print(os.path.join(self.image_dir,image + '.jpg'),os.path.join(self.mask_dir,image + '.png'))
         frame = np.array(
-            io.imread(url, plugin='matplotlib').convert("RGB")
+            self.convrgb(io.imread(url, plugin='matplotlib'))
         )
         h, w, _ = frame.shape
         mask = np.zeros((h, w, 20)).astype(np.uint8)
@@ -425,7 +435,7 @@ class Coco_MO_Train(data.Dataset):
                         self.image_dir,
                         str(sampled_object["image_id"]).zfill(12) + ".jpg",
                     )
-                    ob_frame = np.array(io.imread(url, plugin='matplotlib').convert("RGB"))
+                    ob_frame = np.array(self.convrgb(io.imread(url, plugin='matplotlib')))
                     h, w, _ = ob_frame.shape
                     ob_segs = sampled_object["segmentation"]
                     ob_bbox = sampled_object["bbox"]
@@ -528,7 +538,7 @@ class Coco_MO_Train(data.Dataset):
             sampled_f_m = []
             for sampled_object in sampled_objects:
                 ob_img_path = sampled_object["url"]
-                ob_frame = np.array(Image.open(ob_img_path).convert("RGB"))
+                ob_frame = np.array(self.convrgb(io.imread(ob_img_path, plugin='matplotlib')))
                 h, w, _ = ob_frame.shape
                 ob_segs = sampled_object["segmentation"]
                 ob_bbox = sampled_object["bbox"]
