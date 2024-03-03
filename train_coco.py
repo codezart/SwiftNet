@@ -95,14 +95,14 @@ model = nn.DataParallel(SwiftNet())
 
 if torch.cuda.is_available():
     model.cuda()
-# model.train()
-# for module in model.modules():
-#     if isinstance(module, torch.nn.modules.BatchNorm1d):
-#         module.eval()
-#     if isinstance(module, torch.nn.modules.BatchNorm2d):
-#         module.eval()
-#     if isinstance(module, torch.nn.modules.BatchNorm3d):
-#         module.eval()
+model.train()
+for module in model.modules():
+    if isinstance(module, torch.nn.modules.BatchNorm1d):
+        module.eval()
+    if isinstance(module, torch.nn.modules.BatchNorm2d):
+        module.eval()
+    if isinstance(module, torch.nn.modules.BatchNorm3d):
+        module.eval()
 
 criterion = nn.CrossEntropyLoss()
 criterion.cuda()
