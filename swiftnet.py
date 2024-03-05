@@ -262,11 +262,11 @@ class SwiftNet(nn.Module):
         self.LAE = LAE()
         self.Encoder = Encoder()
 
-        self.KV_M_r4 = KeyValue(256, keydim=32, valdim=128)
-        self.KV_Q_r4 = KeyValue(256, keydim=32, valdim=128)
+        self.KV_M_r4 = KeyValue(1024, keydim=32, valdim=128)
+        self.KV_Q_r4 = KeyValue(1024, keydim=32, valdim=128)
 
         self.Memory = Memory()
-        self.Decoder = Decoder(64)
+        self.Decoder = Decoder(128)
         self.aspp = ASPP()
 
     def Pad_memory(self, mems, num_objects, K):
