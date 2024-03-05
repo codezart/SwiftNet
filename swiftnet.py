@@ -53,29 +53,29 @@ def pixelshuffle_invert(x, factor_hw):
 class LAE(nn.Module):
     def __init__(self):
         super(LAE, self).__init__()
-        self.conv1_m = nn.Conv2d(1, 64, kernel_size=7, stride=2, padding=3, bias=False)
+        self.conv1_m = nn.Conv2d(1, 64, kernel_size=7, stride=2, padding=3, bias=False) #mask
         self.conv1_o = nn.Conv2d(1, 64, kernel_size=7, stride=2, padding=3, bias=False)
         self.conv2_m = nn.Conv2d(
-            256, 256, kernel_size=3, stride=1, padding=1, bias=False
+            256, 1024, kernel_size=3, stride=1, padding=1, bias=False
         )
         self.conv2_o = nn.Conv2d(
-            256, 256, kernel_size=3, stride=1, padding=1, bias=False
+            256, 1024, kernel_size=3, stride=1, padding=1, bias=False
         )
 
         self.conv_fusion1 = nn.Conv2d(
-            64, 64, kernel_size=3, stride=2, padding=1, bias=False
+            64, 256, kernel_size=3, stride=2, padding=1, bias=False
         )
         self.conv_fusion2 = nn.Conv2d(
-            64, 128, kernel_size=3, stride=2, padding=1, bias=False
+            256, 512, kernel_size=3, stride=2, padding=1, bias=False
         )
         self.conv_fusion3 = nn.Conv2d(
-            128, 256, kernel_size=3, stride=2, padding=1, bias=False
+            512, 1024, kernel_size=3, stride=2, padding=1, bias=False
         )
         self.conv_fusion4 = nn.Conv2d(
-            256, 256, kernel_size=3, stride=1, padding=1, bias=False
+            1024, 1024, kernel_size=3, stride=1, padding=1, bias=False
         )
         self.conv_fusion5 = nn.Conv2d(
-            256, 256, kernel_size=3, stride=1, padding=1, bias=False
+            1024, 1024, kernel_size=3, stride=1, padding=1, bias=False
         )
 
     def forward(self, r4, r3, r2, c1, in_m, in_o):
