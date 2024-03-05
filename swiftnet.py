@@ -244,7 +244,7 @@ class ASPP(nn.Module):
         self.aspp4 = _ASPPModule(
             256, 128, 3, padding=dilations[3], dilation=dilations[3]
         )
-        self.conv1 = nn.Conv2d(512, 128, 1, bias=False)
+        self.conv1 = nn.Conv2d(512, 512, 1, bias=False)
 
     def forward(self, x):
         x1 = self.aspp1(x)
