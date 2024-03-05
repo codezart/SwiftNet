@@ -99,7 +99,7 @@ class LAE(nn.Module):
 class Encoder(nn.Module):
     def __init__(self):
         super(Encoder, self).__init__()
-        resnet = models.resnet18()
+        resnet = models.resnet50()
         self.conv1 = resnet.conv1
         self.bn1 = resnet.bn1
         self.relu = resnet.relu  # 1/2, 64
