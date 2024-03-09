@@ -274,7 +274,7 @@ if __name__ == "__main__":
         model.cuda()
     model.eval()
 
-    pth_path = "../davis_youtube_resnet50_799999_170.pth"
+    pth_path = "../swiftnet_davis_1_04_M_2400000.pth"
     state_dict = torch.load(pth_path)
     new_state_dict = {k.replace("module.", ""): v for k, v in state_dict.items()}
     model.load_state_dict(new_state_dict, strict=False)
