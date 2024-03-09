@@ -258,7 +258,7 @@ if __name__ == "__main__":
     SET = args.s
     DATA_ROOT = args.D
 
-    os.environ["CUDA_VISIBLE_DEVICES"] = GPU
+    # os.environ["CUDA_VISIBLE_DEVICES"] = GPU
     if torch.cuda.is_available():
         print("using Cuda devices, num:", torch.cuda.device_count())
 
