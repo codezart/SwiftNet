@@ -1,23 +1,23 @@
 from __future__ import division
 import torch
-from torch.autograd import Variable
+# from torch.autograd import Variable
 from torch.utils import data
 import torch.nn as nn
 import torch.nn.functional as F
-import torch.nn.init as init
-import torch.utils.model_zoo as model_zoo
-from torchvision import models
+# import torch.nn.init as init
+# import torch.utils.model_zoo as model_zoo
+# from torchvision import models
 
 # general libs
-import cv2
+# import cv2
 from PIL import Image
-import numpy as np
-import math
-import time
-import tqdm
+# import numpy as np
+# import math
+# import time
+# import tqdm
 import os
 import argparse
-import copy
+# import copy
 import random
 
 
@@ -25,9 +25,9 @@ import random
 from dataset.dataset import DAVIS_MO_Test
 from dataset.davis import DAVIS_MO_Train
 from dataset.youtube import Youtube_MO_Train
-from model.model import STM
+from swiftnet import SwiftNet
 from eval import evaluate
-from utils.helpers import overlay_davis
+# from utils.helpers import overlay_davis
 
 
 def get_arguments():
@@ -108,7 +108,7 @@ Testloader = DAVIS_MO_Test(
 )
 
 
-model = nn.DataParallel(STM(args.backbone))
+model = nn.DataParallel(SwiftNet())
 pth_path = args.resume_path
 
 print("Loading weights:", pth_path)
