@@ -16,14 +16,14 @@ def db_eval_iou(annotation, segmentation, void_pixels=None):
     assert (
         annotation.shape == segmentation.shape
     ), f"Annotation({annotation.shape}) and segmentation:{segmentation.shape} dimensions do not match."
-    annotation = annotation.astype(np.bool)
-    segmentation = segmentation.astype(np.bool)
+    annotation = annotation.astype(bool)
+    segmentation = segmentation.astype(bool)
 
     if void_pixels is not None:
         assert (
             annotation.shape == void_pixels.shape
         ), f"Annotation({annotation.shape}) and void pixels:{void_pixels.shape} dimensions do not match."
-        void_pixels = void_pixels.astype(np.bool)
+        void_pixels = void_pixels.astype(bool)
     else:
         void_pixels = np.zeros_like(segmentation)
 
@@ -95,9 +95,9 @@ def f_measure(foreground_mask, gt_mask, void_pixels=None, bound_th=0.008):
     """
     assert np.atleast_3d(foreground_mask).shape[2] == 1
     if void_pixels is not None:
-        void_pixels = void_pixels.astype(np.bool)
+        void_pixels = void_pixels.astype(bool)
     else:
-        void_pixels = np.zeros_like(foreground_mask).astype(np.bool)
+        void_pixels = np.zeros_like(foreground_mask).astype(bool)
 
     bound_pix = (
         bound_th
