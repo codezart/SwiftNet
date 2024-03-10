@@ -113,7 +113,7 @@ class Youtube_MO_Train(data.Dataset):
             range(n2 + 1, min(self.num_frames[video], n2 + 2 + self.skip)), 1
         )[0]
         frame_list = [n1, n2, n3]
-        num_object = 0
+        num_object = 1
         ob_list = []
         for f in range(3):
             img_file = img_files[frame_list[f]]
