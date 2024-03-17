@@ -153,6 +153,8 @@ class Encoder(nn.Module):
         print(torch.isnan(self.conv1.bias).any())    # Check for NaN in bias if bias=True
 
         x = self.conv1(f)
+        print(torch.isnan(x).any())    # Check for NaN in bias if bias=True
+        print("x:  {}".format(x))
         c1 = self.bn1(x)
         x = self.relu(c1)  # 1/2, 64
         x = self.maxpool(x)  # 1/4, 64
