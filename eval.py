@@ -249,6 +249,7 @@ if __name__ == "__main__":
         parser.add_argument(
             "-D", type=str, help="path to data", default="./davis/2017/trainval/"
         )
+        parser.add_argument("-modelpth", type=str,help="pretrained model path", required=True)
         return parser.parse_args()
 
     args = get_arguments()
@@ -257,6 +258,7 @@ if __name__ == "__main__":
     YEAR = args.y
     SET = args.s
     DATA_ROOT = args.D
+    model_pth = args.modelpth
 
     # os.environ["CUDA_VISIBLE_DEVICES"] = GPU
     if torch.cuda.is_available():
@@ -274,10 +276,10 @@ if __name__ == "__main__":
         model.cuda()
     model.eval()
 
-    pth_path = "../swiftnet_davis_1_04_M_2400000.pth"
+    pth_path = model_pth
     state_dict = torch.load(pth_path)
     # new_state_dict = {k.replace("", ""): v for k, v in state_dict.items()}
-    model.load_state_dict(state_dict)#, strict=False)
+    model.load_state_dict(state_dict, strict=False)
 
     metric = ["J", "F"]
     evaluate(model, Testloader, metric, 0)

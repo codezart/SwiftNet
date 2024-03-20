@@ -148,13 +148,13 @@ class Encoder(nn.Module):
 
     def forward(self, in_f):
         f = (in_f - self.mean) / self.std # normalized frame
-        print("Encoder-forward After normalization:", torch.isnan(f).any())
-        print(torch.isnan(self.conv1.weight).any())  # Check for NaN in weights
-        print(torch.isnan(self.conv1.bias).any())    # Check for NaN in bias if bias=True
+        # print("Encoder-forward After normalization:", torch.isnan(f).any())
+        # print(torch.isnan(self.conv1.weight).any())  # Check for NaN in weights
+        # print(torch.isnan(self.conv1.bias).any())    # Check for NaN in bias if bias=True
 
         x = self.conv1(f)
-        print(torch.isnan(x).any())    # Check for NaN in bias if bias=True
-        print("x:  {}".format(x))
+        # print(torch.isnan(x).any())    # Check for NaN in bias if bias=True
+        # print("x:  {}".format(x))
         c1 = self.bn1(x)
         x = self.relu(c1)  # 1/2, 64
         x = self.maxpool(x)  # 1/4, 64
@@ -376,18 +376,20 @@ class SwiftNet(nn.Module):
         )
 
     def Soft_aggregation(self, ps, K):
-        num_objects, H, W = ps.shape
-        em = ToCuda(torch.zeros(1, K, H, W))
-        em[0, 0] = torch.prod(1 - ps, dim=0)  # bg prob
-        em[0, 1 : num_objects + 1] = ps  # obj prob
-        em = torch.clamp(em, 1e-7, 1 - 1e-7)
-        logit = torch.log((em / (1 - em)))
-
+        #stm
         # num_objects, H, W = ps.shape
-        # bg_prob = torch.prod(1 - ps, dim=0).unsqueeze(0).unsqueeze(0)  # bg prob
-        # em = torch.cat([bg_prob, ps.unsqueeze(0)], dim=1)
+        # em = ToCuda(torch.zeros(1, K, H, W))
+        # em[0, 0] = torch.prod(1 - ps, dim=0)  # bg prob
+        # em[0, 1 : num_objects + 1] = ps  # obj prob
         # em = torch.clamp(em, 1e-7, 1 - 1e-7)
         # logit = torch.log((em / (1 - em)))
+        
+        #swiftnet
+        num_objects, H, W = ps.shape
+        bg_prob = torch.prod(1 - ps, dim=0).unsqueeze(0).unsqueeze(0)  # bg prob
+        em = torch.cat([bg_prob, ps.unsqueeze(0)], dim=1)
+        em = torch.clamp(em, 1e-7, 1 - 1e-7)
+        logit = torch.log((em / (1 - em)))
         return logit
 
     def memorize(
@@ -437,7 +439,7 @@ class SwiftNet(nn.Module):
     def segment(self, frame, keys, values, num_objects):
         num_objects = num_objects[0].item()
         # _, keydim, N = keys.shape
-        [frame], pad = pad_divide_by([frame], 16, (frame.size()[2], frame.size()[3]))
+        [frame], pad = pad_divide_by([frame], 64, (frame.size()[2], frame.size()[3]))
         r4, r3, r2, c1, _ = self.Encoder(frame)
         k4, v4 = self.KV_Q_r4(r4)
         k4e, v4e = k4.expand(num_objects, -1, -1, -1), v4.expand(
