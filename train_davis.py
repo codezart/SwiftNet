@@ -1,37 +1,44 @@
 from __future__ import division
-import torch
-# from torch.autograd import Variable
-from torch.utils import data
-import torch.nn as nn
-import torch.nn.functional as F
-# import torch.nn.init as init
-# import torch.utils.model_zoo as model_zoo
-# from torchvision import models
 
-# general libs
-# import cv2
-from PIL import Image
+import argparse
+
 # import numpy as np
 # import math
 # import time
 # import tqdm
 import os
-import argparse
+
 # import copy
 import random
 
+import torch
+import torch.nn as nn
+import torch.nn.functional as F
+
+# general libs
+# import cv2
+from PIL import Image
+
+# from torch.autograd import Variable
+from torch.utils import data
 
 ### My libs
 from dataset.dataset import DAVIS_MO_Test
 from dataset.davis import DAVIS_MO_Train
 from dataset.youtube import Youtube_MO_Train
-from swiftnet import SwiftNet
 from eval import evaluate
+from swiftnet import SwiftNet
+
+# import torch.nn.init as init
+# import torch.utils.model_zoo as model_zoo
+# from torchvision import models
+
+
 # from utils.helpers import overlay_davis
 
 
 def get_arguments():
-    """ This function gets all the arguments from the python command"""
+    """This function gets all the arguments from the python command"""
 
     parser = argparse.ArgumentParser(description="SST")
     parser.add_argument(
@@ -115,7 +122,7 @@ pth_path = args.resume_path
 
 print("Loading weights:", pth_path)
 
-model.load_state_dict(torch.load(pth_path),strict=False)
+model.load_state_dict(torch.load(pth_path), strict=False)
 
 if torch.cuda.is_available():
     model.cuda()
@@ -187,15 +194,26 @@ for iter_ in range(args.total_iter):
 
     print("MY NUM OB:", num_objects)
 
-    n1_key, n1_value = model(Fs[:, :, 0], Es[:, :, 0], None, None, None, None, torch.tensor([num_objects]),first_frame_flag = True)
-    
-    n2_logit, r4, r3, r2, c1 = model(Fs[:, :, 0], n1_key, n1_value, torch.tensor([num_objects]))
+    n1_key, n1_value = model(
+        Fs[:, :, 0],
+        Es[:, :, 0],
+        None,
+        None,
+        None,
+        None,
+        torch.tensor([num_objects]),
+        first_frame_flag=True,
+    )
+
+    n2_logit, r4, r3, r2, c1 = model(
+        Fs[:, :, 0], n1_key, n1_value, torch.tensor([num_objects])
+    )
     n2_label = torch.argmax(Ms[:, :, 1], dim=1).long().cuda()
     n2_loss = criterion(n2_logit, n2_label)
 
     Es[:, :, 1] = F.softmax(n2_logit, dim=1)
 
-    n2_key, n2_value = model(Fs[:, :, 1], Es[:, :, 1],r4, r3, r2, c1, num_objects)
+    n2_key, n2_value = model(Fs[:, :, 1], Es[:, :, 1], r4, r3, r2, c1, num_objects)
     n12_keys = torch.cat([n1_key, n2_key], dim=3)
     n12_values = torch.cat([n1_value, n2_value], dim=3)
     n3_logit = model(Fs[:, :, 2], n12_keys, n12_values, num_objects)

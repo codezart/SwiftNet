@@ -1,15 +1,14 @@
+import glob
 import os
 import os.path as osp
-import numpy as np
-from PIL import Image
+import pdb
 
+import cv2
+import numpy as np
 import torch
 import torchvision
+from PIL import Image
 from torch.utils import data
-import cv2
-
-import glob
-import pdb
 
 
 class DAVIS_MO_Test(data.Dataset):

@@ -1,31 +1,33 @@
 from __future__ import division
+
+import argparse
+import copy
+import math
+import os
+import random
+import time
+
+# general libs
+import cv2
+import numpy as np
 import torch
-from torch.autograd import Variable
-from torch.utils import data
 import torch.nn as nn
 import torch.nn.functional as F
 import torch.nn.init as init
 import torch.utils.model_zoo as model_zoo
+import tqdm
+from PIL import Image
+from torch.autograd import Variable
+from torch.utils import data
 from torchvision import models
 
-# general libs
-import cv2
-from PIL import Image
-import numpy as np
-import math
-import time
-import tqdm
-import os
-import argparse
-import copy
-import random
+from dataset.coco import Coco_MO_Train
 
 #####freeze_bn()
 ### My libs
 from dataset.dataset import DAVIS_MO_Test
-from dataset.coco import Coco_MO_Train
-from swiftnet import SwiftNet
 from eval import evaluate
+from swiftnet import SwiftNet
 from utils.helpers import overlay_davis
 
 

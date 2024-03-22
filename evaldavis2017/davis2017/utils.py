@@ -1,8 +1,10 @@
-import os
 import errno
+import os
+import warnings
+
 import numpy as np
 from PIL import Image
-import warnings
+
 from evaldavis2017.davis2017.davis import DAVIS
 
 

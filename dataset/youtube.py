@@ -1,15 +1,16 @@
+import glob
 import os
 import os.path as osp
-import numpy as np
-from PIL import Image
+import pdb
+import random
 
+import cv2
+import numpy as np
 import torch
 import torchvision
+from PIL import Image
 from torch.utils import data
-import random
-import glob
-import pdb
-import cv2
+
 from dataset.aug import aug_heavy
 
 MAX_OBJECT_NUM_PER_SAMPLE = 5
@@ -20,9 +21,11 @@ class Youtube_MO_Train(data.Dataset):
     # for multi object, do shuffling
 
     def __init__(self, root):
-        self.root = root # Root directory for dataset
-        self.mask_dir = os.path.join(root, "Annotations") # Directory containing mask annotations
-        self.image_dir = os.path.join(root, "JPEGImages") # Directory containing images
+        self.root = root  # Root directory for dataset
+        self.mask_dir = os.path.join(
+            root, "Annotations"
+        )  # Directory containing mask annotations
+        self.image_dir = os.path.join(root, "JPEGImages")  # Directory containing images
 
         # List video folders found in image directory
         self.videos = [
@@ -44,9 +47,9 @@ class Youtube_MO_Train(data.Dataset):
             self.mask_files[_video] = tmp_masks
             self.num_frames[_video] = len(tmp_imgs)
 
-        self.K = 11 # Total classes: 10 objects + 1 background # K represents a const used for handling one hot encoding masks. Implying that this dataset is designed to work with up to 10 distinct objects per sample, plus an additional category for background
-        self.skip = 0 # Skip factor for selecting frames
-        self.aug = aug_heavy() # Data augmentation function
+        self.K = 11  # Total classes: 10 objects + 1 background # K represents a const used for handling one hot encoding masks. Implying that this dataset is designed to work with up to 10 distinct objects per sample, plus an additional category for background
+        self.skip = 0  # Skip factor for selecting frames
+        self.aug = aug_heavy()  # Data augmentation function
 
     def __len__(self):
         # Returns the total number of videos
@@ -76,15 +79,21 @@ class Youtube_MO_Train(data.Dataset):
         # Process each mask, updating the number of objects and the object list
         n = num_object
         mask_ = np.zeros(mask.shape).astype(np.uint8)
-        if f == 0: # if first frame go through pixels which are mask objects and add to object list
+        if (
+            f == 0
+        ):  # if first frame go through pixels which are mask objects and add to object list
             for i in range(1, 11):
                 if np.sum(mask == i) > 0:
                     n += 1
                     ob_list.append(i)
-            if n > MAX_OBJECT_NUM_PER_SAMPLE: # if unique objects are more than max, remove some
+            if (
+                n > MAX_OBJECT_NUM_PER_SAMPLE
+            ):  # if unique objects are more than max, remove some
                 n = MAX_OBJECT_NUM_PER_SAMPLE
                 ob_list = random.sample(ob_list, n)
-        for i, l in enumerate(ob_list): # relable object list with i+1 for each object in list [1,2,3,..]
+        for i, l in enumerate(
+            ob_list
+        ):  # relable object list with i+1 for each object in list [1,2,3,..]
             mask_[mask == l] = i + 1
         return mask_, n, ob_list
 
@@ -100,12 +109,12 @@ class Youtube_MO_Train(data.Dataset):
 
         # Pre-allocate tensors for frames and masks
         N_frames = np.empty(
-            (3,) # could be batch size
+            (3,)  # could be batch size
             + (
                 384,  # image hxw
                 384,
             )
-            + (3,), # could be color channels
+            + (3,),  # could be color channels
             dtype=np.float32,
         )
         N_masks = np.empty(
@@ -178,17 +187,19 @@ class Youtube_MO_Train(data.Dataset):
 
         if num_object == 0:
             num_object += 1
-            
+
         # Ensure there is at least one object
         num_objects = torch.LongTensor([num_object])
         return Fs, Ms, num_objects, info
 
 
 if __name__ == "__main__":
-    from helpers import overlay_davis
-    import matplotlib.pyplot as plt
     import os
     import pdb
+
+    import matplotlib.pyplot as plt
+
+    from helpers import overlay_davis
 
     dataset = Youtube_MO_Train("/smart/haochen/cvpr/data/YOUTUBE-VOS/train/")
     dataset.skip = 10

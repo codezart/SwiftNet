@@ -2,27 +2,29 @@
 from __future__ import division
 
 import argparse
+import logging
 import os
 import random
-import logging
+from datetime import datetime
 
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from datetime import datetime
+import tqdm
 from PIL import Image
 from torch.utils import data
 
 from dataset.davis import DAVIS_MO_Train
 from dataset.youtube import Youtube_MO_Train
+
 # Custom Libs
-from davis import \
-    DAVIS_MO_Test  # this seems to be the most updated one so using it
+from davis import DAVIS_MO_Test  # this seems to be the most updated one so using it
 from eval import evaluate  # for test loading davis test
 from swiftnet import SwiftNet
 
 # This flag allows you to enable the inbuilt cudnn auto-tuner to find the best algorithm to use for your hardware
 torch.backends.cudnn.benchmark = True
+
 
 def get_arguments():
     """This function gets all the arguments from the python command"""
@@ -50,7 +52,7 @@ def get_arguments():
     )
     parser.add_argument("-total_iter", type=int, help="total iter num", default=800000)
     parser.add_argument(
-        "-test_iter", type=int, help="evaluate per x iters", default=10000
+        "-test_iter", type=int, help="evaluate per x iters", default=200
     )
     parser.add_argument("-log_iter", type=int, help="log per x iters", default=500)
     parser.add_argument(
@@ -75,7 +77,6 @@ def adjust_learning_rate(iteration, total_iter, power=0.9):
 
 
 def main():
-
     # get and store arguments
     args = get_arguments()
     rate = args.sample_rate
@@ -91,7 +92,9 @@ def main():
     logging.info("Saved all arguments")
 
     # get sample palette for DAVIS mask
-    palette = Image.open(DAVIS_ROOT + "/Annotations/480p/blackswan/00000.png").getpalette()
+    palette = Image.open(
+        DAVIS_ROOT + "/Annotations/480p/blackswan/00000.png"
+    ).getpalette()
 
     logging.info("Saved DAVIS mask palette")
 
@@ -118,7 +121,7 @@ def main():
 
     logging.info("Acquired Youtube train dataset")
 
-    # Davis Test get data.Dataset 
+    # Davis Test get data.Dataset
     davis_testloader = DAVIS_MO_Test(
         DAVIS_ROOT,
         resolution="480p",
@@ -133,17 +136,14 @@ def main():
     logging.info("Loading weights: ", pth_path)
 
     # load the pretrained model
-    model.load_state_dict(
-        torch.load(pth_path),
-        strict=False
-    )
+    model.load_state_dict(torch.load(pth_path), strict=False)
 
-    logging.info("loaded pretrain model {}".format(pth_path)) 
+    logging.info("loaded pretrain model {}".format(pth_path))
 
     # make model cuda if cuda available
     if torch.cuda.is_available():
-        model.cuda() # moves model's parameters and buffers to the GPU
-        print("CUDA set") 
+        model.cuda()  # moves model's parameters and buffers to the GPU
+        print("CUDA set")
 
     # set model to training mode
     model.train()
@@ -158,11 +158,13 @@ def main():
             module.eval()
 
     # set loss type
-    criterion = nn.CrossEntropyLoss() # commonly used in training classification models
+    criterion = nn.CrossEntropyLoss()  # commonly used in training classification models
     criterion.cuda()
 
     # set optimizer
-    optimizer = torch.optim.Adam(model.parameters(), lr=1e-5, eps=1e-8, betas=[0.9, 0.999])
+    optimizer = torch.optim.Adam(
+        model.parameters(), lr=1e-5, eps=1e-8, betas=[0.9, 0.999]
+    )
 
     loss_momentum = 0
     max_skip = 25
@@ -170,21 +172,21 @@ def main():
     max_jf = 0
 
     # train model total_iter
-    for iter_ in range(total_iter):
-        
+    for iter_ in tqdm.tqdm(range(total_iter)):
+        # print(iter_)
         # adjust learning rate every 1000 iterations
         if (iter_ + 1) % 1000 == 0:
             lr = adjust_learning_rate(iter_, total_iter)
             for param_group in optimizer.param_groups:
                 param_group["lr"] = lr
-        
+
         # change skip
         if (iter_ + 1) % change_skip_step == 0:
-            logging.info("Entered change skip") 
+            logging.info("Entered change skip")
 
             if skip_n < max_skip:
                 skip_n += 1
-            
+
             youtube_trainset.change_skip(skip_n // 5)
             youtube_trainloader_iter = iter(youtube_trainloader)
 
@@ -194,76 +196,70 @@ def main():
         # based on a rate get the next set of frames, masks, num_objects, info from either DAVIS or YOUTUBEVOS
         if random.random() < rate:
             try:
-                logging.info("Getting DAVIS data Fs Ms etc") 
+                logging.info("Getting DAVIS data Fs Ms etc")
                 Fs, Ms, num_objects, info = next(davis_trainloader_iter)
             except:
                 davis_trainloader_iter = iter(davis_trainloader)
                 Fs, Ms, num_objects, info = next(davis_trainloader_iter)
-                logging.info("Getting next failed, restarting with iter") 
+                logging.info("Getting next failed, restarting with iter")
         else:
             try:
-                logging.info("Getting Youtube data Fs Ms etc") 
+                logging.info("Getting Youtube data Fs Ms etc")
                 Fs, Ms, num_objects, info = next(youtube_trainloader_iter)
             except:
                 youtube_trainloader_iter = iter(youtube_trainloader)
                 Fs, Ms, num_objects, info = next(youtube_trainloader_iter)
-                logging.info("Getting next failed, restarting with iter") 
+                logging.info("Getting next failed, restarting with iter")
 
-        logging.info("Fs or image frames: \nFs.shape:{}\nMs.shape:{}\nnum_objects: {}\nInfo: {}".format(Fs.shape,Ms.shape,num_objects,info))
+        logging.info(
+            "Fs or image frames: \nFs.shape:{}\nMs.shape:{}\nnum_objects: {}\nInfo: {}".format(
+                Fs.shape, Ms.shape, num_objects, info
+            )
+        )
         # seq_name = info["name"][0]
         # num_frames = info["num_frames"][0].item()
         # num_frames = 3
 
         # create empty mask tensor
-        Es = torch.zeros_like(Ms) # size of Ms: torch.size([1, 11, 3, 384, 384]) (could be like this: (batch_size, num_objects_in_frame, channels, height, width))
-        Es[:, :, 0] = Ms[:, :, 0] # copy first frame's mask
-        logging.info("Es mask empty tensor size {}\n Es[:,:,0].size: {},\n".format(Es.size(),  Es[:,:,0].size()))
+        Es = torch.zeros_like(
+            Ms
+        )  # size of Ms: torch.size([1, 11, 3, 384, 384]) (could be like this: (batch_size, onehot 11 categories, num_objects, height, width))
+        Es[:, :, 0] = Ms[:, :, 0]  # copy first frame's mask
+        logging.info(
+            "Es mask empty tensor size {}\n Es[:,:,0].size: {},\n".format(
+                Es.size(), Es[:, :, 0].size()
+            )
+        )
 
         n1_key, n1_value = model(
-            Fs[:, :, 0], 
-            Es[:, :, 0], 
-            None, 
-            None, 
-            None, 
-            None, 
+            Fs[:, :, 0],
+            Es[:, :, 0],
+            None,
+            None,
+            None,
+            None,
             torch.tensor([num_objects]),
-            first_frame_flag = True
+            first_frame_flag=True,
         )
         n2_logit, r4, r3, r2, c1 = model(
-            Fs[:, :, 0], 
-            n1_key, 
-            n1_value, 
-            torch.tensor([num_objects])
+            Fs[:, :, 1], n1_key, n1_value, torch.tensor([num_objects])
         )
         n2_label = torch.argmax(Ms[:, :, 1], dim=1).long().cuda()
         n2_loss = criterion(n2_logit, n2_label)
-        
-        Es[:, :, 1] = F.softmax(n2_logit, dim=1)
 
-        n2_key, n2_value = model(
-            Fs[:, :, 1], 
-            Es[:, :, 1],
-            r4, 
-            r3, 
-            r2, 
-            c1, 
-            num_objects
-        )
+        Es[:, : num_objects + 1, 1] = F.softmax(
+            n2_logit, dim=1
+        )  # swiftnet has num objects limited to 3. STM used full 11 objects (10 + 1 background)
+        n2_key, n2_value = model(Fs[:, :, 1], Es[:, :, 1], r4, r3, r2, c1, num_objects)
         n12_keys = torch.cat([n1_key, n2_key], dim=2)
         n12_values = torch.cat([n1_value, n2_value], dim=2)
-        n3_logit, r4, r3, r2, c1 = model(
-            Fs[:, :, 2], 
-            n12_keys, 
-            n12_values, 
-            num_objects
-        )
+        n3_logit, r4, r3, r2, c1 = model(Fs[:, :, 2], n12_keys, n12_values, num_objects)
 
         n3_label = torch.argmax(Ms[:, :, 2], dim=1).long().cuda()
         n3_loss = criterion(n3_logit, n3_label)
-        Es[:, :, 2] = F.softmax(n3_logit, dim=1)
+        Es[:, : num_objects + 1, 2] = F.softmax(n3_logit, dim=1)
 
         loss = n2_loss + n3_loss
-        # loss = loss / accumulation_step
 
         loss.backward()
         loss_momentum += loss.cpu().data.numpy()
@@ -280,20 +276,23 @@ def main():
             )
             loss_momentum = 0
 
-        if (iter_ + 1) % save_step == 0 and (iter_ + 1) >= 600000:
+        if (iter_ + 1) % save_step == 0 and (iter_ + 1) >= 200:
             if not os.path.exists(args.save):
                 os.makedirs(args.save)
             torch.save(
                 model.state_dict(),
                 os.path.join(
-                    args.save, "davis_youtube_{}_{}.pth".format(args.backbone, str(iter_))
+                    args.save,
+                    "swiftnet_davis_youtube_{}_{}.pth".format(
+                        args.backbone, str(iter_)
+                    ),
                 ),
             )
 
             model.eval()
 
             print("Evaluate at iter: " + str(iter_))
-            g_res = evaluate(model, davis_testloader, ["J", "F"])
+            g_res = evaluate(model, davis_testloader, ["J", "F"], 0)
 
             if g_res[0] > max_jf:
                 max_jf = g_res[0]
@@ -309,7 +308,13 @@ def main():
                 if isinstance(module, torch.nn.modules.BatchNorm3d):
                     module.eval()
 
+
 if __name__ == "__main__":
     now = datetime.now()
-    logging.basicConfig(filename='train{}.log'.format(now.strftime("_%Y_%m_%d_%H_%M_%S")), filemode='a', level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
+    logging.basicConfig(
+        filename="train{}.log".format(now.strftime("_%Y_%m_%d_%H_%M_%S")),
+        filemode="a",
+        level=logging.DEBUG,
+        format="%(asctime)s - %(levelname)s - %(message)s",
+    )
     main()

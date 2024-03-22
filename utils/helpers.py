@@ -1,24 +1,24 @@
 from __future__ import division
 
-# torch
-import torch
-from torch.autograd import Variable
-from torch.utils import data
-
-import torch.nn as nn
-import torch.nn.functional as F
-import torch.nn.init as init
-import torch.utils.model_zoo as model_zoo
-from torchvision import models
+import copy
+import os
+import time
 
 # general libs
 import cv2
 import matplotlib.pyplot as plt
-from PIL import Image
 import numpy as np
-import time
-import os
-import copy
+
+# torch
+import torch
+import torch.nn as nn
+import torch.nn.functional as F
+import torch.nn.init as init
+import torch.utils.model_zoo as model_zoo
+from PIL import Image
+from torch.autograd import Variable
+from torch.utils import data
+from torchvision import models
 
 
 def ToCuda(xs):
@@ -53,7 +53,7 @@ def pad_divide_by(in_list, d, in_size):
 def overlay_davis(image, mask, colors=[255, 0, 0], cscale=2, alpha=0.4):
     """Overlay segmentation on top of RGB image. from davis official"""
     # import skimage
-    from scipy.ndimage.morphology import binary_erosion, binary_dilation
+    from scipy.ndimage.morphology import binary_dilation, binary_erosion
 
     colors = np.reshape(colors, (-1, 3))
     # colors = np.atleast_2d(colors) * cscale
