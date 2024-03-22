@@ -1,38 +1,45 @@
 from __future__ import division
-import torch
-# from torch.autograd import Variable
-# from torch.utils import data
 
+import argparse
+import os
+
+# import copy
+import sys
+import warnings
+
+import numpy as np
+import torch
 import torch.nn as nn
 import torch.nn.functional as F
-# import torch.nn.init as init
-# import torch.utils.model_zoo as model_zoo
-# from torchvision import models
+
+# import math
+# import time
+import tqdm
 
 # general libs
 # import cv2
 # import matplotlib.pyplot as plt
 from PIL import Image
-import numpy as np
-# import math
-# import time
-import tqdm
-import os
-import argparse
-# import copy
-import sys
 
 ### My libs
 from davis import DAVIS_MO_Test
 from swiftnet import SwiftNet
 
-import warnings
+# from torch.autograd import Variable
+# from torch.utils import data
+
+# import torch.nn.init as init
+# import torch.utils.model_zoo as model_zoo
+# from torchvision import models
+
 
 warnings.filterwarnings("ignore", category=RuntimeWarning)
 
+from evaldavis2017.davis2017 import utils
+
 # from evaldavis2017.davis2017.davis import DAVIS
 from evaldavis2017.davis2017.metrics import db_eval_boundary, db_eval_iou
-from evaldavis2017.davis2017 import utils
+
 # from evaldavis2017.davis2017.results import Results
 # from scipy.optimize import linear_sum_assignment
 
@@ -249,6 +256,9 @@ if __name__ == "__main__":
         parser.add_argument(
             "-D", type=str, help="path to data", default="./davis/2017/trainval/"
         )
+        parser.add_argument(
+            "-modelpth", type=str, help="pretrained model path", required=True
+        )
         return parser.parse_args()
 
     args = get_arguments()
@@ -257,6 +267,7 @@ if __name__ == "__main__":
     YEAR = args.y
     SET = args.s
     DATA_ROOT = args.D
+    model_pth = args.modelpth
 
     # os.environ["CUDA_VISIBLE_DEVICES"] = GPU
     if torch.cuda.is_available():
@@ -274,10 +285,10 @@ if __name__ == "__main__":
         model.cuda()
     model.eval()
 
-    pth_path = "../swiftnet_davis_1_04_M_2400000.pth"
+    pth_path = model_pth
     state_dict = torch.load(pth_path)
     # new_state_dict = {k.replace("", ""): v for k, v in state_dict.items()}
-    model.load_state_dict(state_dict)#, strict=False)
+    model.load_state_dict(state_dict, strict=False)
 
     metric = ["J", "F"]
     evaluate(model, Testloader, metric, 0)

@@ -1,13 +1,12 @@
+import glob
 import os
 import os.path as osp
-import numpy as np
-from PIL import Image
 
+import numpy as np
 import torch
 import torchvision
+from PIL import Image
 from torch.utils import data
-
-import glob
 
 
 class DAVIS_MO_Test(data.Dataset):

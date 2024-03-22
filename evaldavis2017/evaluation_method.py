@@ -1,8 +1,8 @@
 #!/usr/bin/env python
+import argparse
 import os
 import sys
 from time import time
-import argparse
 
 import numpy as np
 import pandas as pd

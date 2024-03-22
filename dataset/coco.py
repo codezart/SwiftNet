@@ -1,22 +1,21 @@
+import glob
+import json
+import math
 import os
 import os.path as osp
-import numpy as np
-from PIL import Image
-from skimage import io
-from skimage.color import rgba2rgb, gray2rgb
-from torchvision import transforms
-import torch
-import torchvision
-from torch.utils import data
 import random
-import glob
-import math
-import cv2
-import json
 
+import cv2
 import imgaug as ia
 import imgaug.augmenters as iaa
-import math
+import numpy as np
+import torch
+import torchvision
+from PIL import Image
+from skimage import io
+from skimage.color import gray2rgb, rgba2rgb
+from torch.utils import data
+from torchvision import transforms
 
 
 class sampled_aug(object):
@@ -383,9 +382,7 @@ class Coco_MO_Train(data.Dataset):
         masks_ = []
 
         # print(os.path.join(self.image_dir,image + '.jpg'),os.path.join(self.mask_dir,image + '.png'))
-        frame = np.array(
-            self.convrgb(io.imread(url, plugin='matplotlib'))
-        )
+        frame = np.array(self.convrgb(io.imread(url, plugin="matplotlib")))
         h, w, _ = frame.shape
         mask = np.zeros((h, w, 20)).astype(np.uint8)
 
@@ -435,7 +432,9 @@ class Coco_MO_Train(data.Dataset):
                         self.image_dir,
                         str(sampled_object["image_id"]).zfill(12) + ".jpg",
                     )
-                    ob_frame = np.array(self.convrgb(io.imread(url, plugin='matplotlib')))
+                    ob_frame = np.array(
+                        self.convrgb(io.imread(url, plugin="matplotlib"))
+                    )
                     h, w, _ = ob_frame.shape
                     ob_segs = sampled_object["segmentation"]
                     ob_bbox = sampled_object["bbox"]
@@ -539,7 +538,9 @@ class Coco_MO_Train(data.Dataset):
             for sampled_object in sampled_objects:
                 print(sampled_object)
                 ob_img_path = sampled_object["coco_url"]
-                ob_frame = np.array(self.convrgb(io.imread(ob_img_path, plugin='matplotlib')))
+                ob_frame = np.array(
+                    self.convrgb(io.imread(ob_img_path, plugin="matplotlib"))
+                )
                 h, w, _ = ob_frame.shape
                 ob_segs = sampled_object["segmentation"]
                 ob_bbox = sampled_object["bbox"]
@@ -622,10 +623,12 @@ if __name__ == "__main__":
 
     pwd = os.getcwd()
     sys.path.append(pwd)
-    from utils.helpers import overlay_davis
-    import matplotlib.pyplot as plt
-    import pdb
     import argparse
+    import pdb
+
+    import matplotlib.pyplot as plt
+
+    from utils.helpers import overlay_davis
 
     def get_arguments():
         parser = argparse.ArgumentParser(description="xxx")

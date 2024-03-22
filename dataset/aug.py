@@ -1,8 +1,9 @@
-import numpy as np
+import random
+
+import cv2
 import imgaug as ia
 import imgaug.augmenters as iaa
-import random
-import cv2
+import numpy as np
 from PIL import Image
 
 

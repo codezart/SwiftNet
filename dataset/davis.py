@@ -1,19 +1,17 @@
+import glob
 import os
 import os.path as osp
-import numpy as np
-from PIL import Image
-import cv2
+import pdb
+import random
 
+import cv2
+import numpy as np
 import torch
 import torchvision
+from PIL import Image
 from torch.utils import data
 
-import random
-import glob
-
-import pdb
 from dataset.aug import aug_heavy
-
 
 MAX_OBJECT_NUM_PER_SAMPLE = 5
 
@@ -171,10 +169,12 @@ class DAVIS_MO_Train(data.Dataset):
 
 
 if __name__ == "__main__":
-    from helpers import overlay_davis
-    import matplotlib.pyplot as plt
     import os
     import pdb
+
+    import matplotlib.pyplot as plt
+
+    from helpers import overlay_davis
 
     davis_root = "/smart/haochen/cvpr/data/DAVIS"
     dataset = DAVIS_MO_Train(davis_root)

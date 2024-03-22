@@ -1,4 +1,11 @@
 from __future__ import division
+
+import logging
+import math
+import os
+import time
+
+import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -6,14 +13,17 @@ import torch.nn.init as init
 import torch.utils.model_zoo as model_zoo
 from torchvision import models
 
-import numpy as np
-import math
-import time
-import os
 from helpers import *
 
 
 class ResBlock(nn.Module):
+    """
+    A basic residual block that applies a sequence of convolutions,
+    followed by a skip connection that adds the input directly to the result of the convolutional layers.
+    This helps in mitigating the vanishing gradient problem and allows for deeper networks
+    by enabling the flow of gradients through the skip connections.
+    """
+
     def __init__(self, indim, outdim=None, stride=1):
         super(ResBlock, self).__init__()
         if outdim == None:
@@ -39,6 +49,13 @@ class ResBlock(nn.Module):
 
 
 def pixelshuffle_invert(x, factor_hw):
+    """
+    A function that performs the inverse operation of pixel shuffle,
+    which is commonly used for super-resolution tasks.
+    It essentially rearranges elements in a tensor from a high-resolution
+    feature space to a low-resolution feature space by decreasing height and width
+    while increasing the number of channels
+    """
     pH = factor_hw[0]
     pW = factor_hw[1]
     y = x
@@ -51,9 +68,19 @@ def pixelshuffle_invert(x, factor_hw):
 
 
 class LAE(nn.Module):
+    """
+    This class seems to combine features from the input mask and object with
+    intermediate representations of the input frame at different resolutions (r4, r3, r2, c1)
+    using convolutional layers. It likely aims to refine the
+    feature representation by incorporating attention to local regions,
+    focusing on relevant features for segmentation.
+    """
+
     def __init__(self):
         super(LAE, self).__init__()
-        self.conv1_m = nn.Conv2d(1, 64, kernel_size=7, stride=2, padding=3, bias=False) #mask
+        self.conv1_m = nn.Conv2d(
+            1, 64, kernel_size=7, stride=2, padding=3, bias=False
+        )  # mask
         self.conv1_o = nn.Conv2d(1, 64, kernel_size=7, stride=2, padding=3, bias=False)
         self.conv2_m = nn.Conv2d(
             256, 1024, kernel_size=3, stride=1, padding=1, bias=False
@@ -97,9 +124,19 @@ class LAE(nn.Module):
 
 
 class Encoder(nn.Module):
+    """
+    Utilizes a pretrained ResNet-50 model to encode input frames into a
+    hierarchical set of feature maps at different resolutions (r4, r3, r2, c1).
+    These feature maps are later used for extracting key-value pairs and
+    for decoding to produce segmentation masks.
+    The encoder standardizes inputs by subtracting the mean and dividing by the standard deviation,
+    using predefined values that match those used in ImageNet training.
+    """
+
     def __init__(self):
         super(Encoder, self).__init__()
-        resnet = models.resnet50()
+        resnet = models.resnet50(pretrained=True)
+        self.resnet = resnet
         self.conv1 = resnet.conv1
         self.bn1 = resnet.bn1
         self.relu = resnet.relu  # 1/2, 64
@@ -117,9 +154,14 @@ class Encoder(nn.Module):
         )
 
     def forward(self, in_f):
-        f = (in_f - self.mean) / self.std
+        f = (in_f - self.mean) / self.std  # normalized frame
+        # print("Encoder-forward After normalization:", torch.isnan(f).any())
+        # print(torch.isnan(self.conv1.weight).any())  # Check for NaN in weights
+        # print(torch.isnan(self.conv1.bias).any())    # Check for NaN in bias if bias=True
 
         x = self.conv1(f)
+        # print(torch.isnan(x).any())    # Check for NaN in bias if bias=True
+        # print("x:  {}".format(x))
         c1 = self.bn1(x)
         x = self.relu(c1)  # 1/2, 64
         x = self.maxpool(x)  # 1/4, 64
@@ -130,6 +172,13 @@ class Encoder(nn.Module):
 
 
 class Refine(nn.Module):
+    """
+    A module designed to refine segmentation masks at different scales.
+    It takes feature maps from the encoder and previously generated masks
+    to refine the segmentation details through convolutional and residual blocks,
+    followed by upsampling.
+    """
+
     def __init__(self, inplanes, planes, scale_factor=2):
         super(Refine, self).__init__()
         self.convFS = nn.Conv2d(
@@ -149,6 +198,13 @@ class Refine(nn.Module):
 
 
 class Decoder(nn.Module):
+    """
+    Decodes the feature maps from the Encoder and the refined features
+    from the Refine module to produce the final segmentation mask.
+    It includes convolutional layers and a final prediction layer
+    that outputs the segmentation logits, which are then upscaled to the original resolution.
+    """
+
     def __init__(self, mdim):
         super(Decoder, self).__init__()
         self.convFM = nn.Conv2d(512, mdim, kernel_size=(3, 3), padding=(1, 1), stride=1)
@@ -170,6 +226,13 @@ class Decoder(nn.Module):
 
 
 class Memory(nn.Module):
+    """
+    Implements a memory mechanism for video object segmentation,
+    allowing the network to utilize information from previous frames.
+    It matches query and key feature maps to generate a weighted sum of value feature maps,
+    which is a way of incorporating temporal information into the segmentation process.
+    """
+
     def __init__(self):
         super(Memory, self).__init__()
 
@@ -184,7 +247,7 @@ class Memory(nn.Module):
 
         p = torch.bmm(mi, qi)
         p = p / math.sqrt(D_e)
-
+        p = torch.clamp(p, max=80.0)
         p = torch.exp(p)
         p = p / torch.sum(p, dim=1, keepdim=True)
 
@@ -198,6 +261,12 @@ class Memory(nn.Module):
 
 
 class KeyValue(nn.Module):
+    """
+    A module that generates key and value pairs from feature maps.
+    These pairs are used in the Memory module to link features across frames,
+    enabling the network to understand changes in object appearance and motion over time.
+    """
+
     def __init__(self, indim, keydim, valdim):
         super(KeyValue, self).__init__()
         self.Key = nn.Conv2d(
@@ -212,6 +281,12 @@ class KeyValue(nn.Module):
 
 
 class _ASPPModule(nn.Module):
+    """
+    Implements the ASPP architecture, which applies atrous convolution with different
+    dilation rates to capture multi-scale information.
+    This is particularly useful for segmentation tasks where objects can appear at various sizes.
+    """
+
     def __init__(self, inplanes, planes, kernel_size, padding, dilation):
         super(_ASPPModule, self).__init__()
         self.atrous_conv = nn.Conv2d(
@@ -230,6 +305,10 @@ class _ASPPModule(nn.Module):
 
 
 class ASPP(nn.Module):
+    """
+    ASPP is effective in enlarging the receptive field and capturing contextual information at multiple scales.
+    """
+
     def __init__(self):
         super(ASPP, self).__init__()
         dilations = [1, 2, 4, 8]
@@ -257,6 +336,14 @@ class ASPP(nn.Module):
 
 
 class SwiftNet(nn.Module):
+    """
+    The main network that integrates all the components mentioned above.
+    It defines a process for memorizing key-value pairs from previous frames
+    and using them to segment objects in current frames.
+    The network is capable of adapting to both the initial frame of a video, where it memorizes the scene,
+    and subsequent frames, where it uses the memory to assist in segmentation.
+    """
+
     def __init__(self):
         super(SwiftNet, self).__init__()
         self.LAE = LAE()
@@ -303,6 +390,15 @@ class SwiftNet(nn.Module):
         )
 
     def Soft_aggregation(self, ps, K):
+        # stm
+        # num_objects, H, W = ps.shape
+        # em = ToCuda(torch.zeros(1, K, H, W))
+        # em[0, 0] = torch.prod(1 - ps, dim=0)  # bg prob
+        # em[0, 1 : num_objects + 1] = ps  # obj prob
+        # em = torch.clamp(em, 1e-7, 1 - 1e-7)
+        # logit = torch.log((em / (1 - em)))
+
+        # swiftnet
         num_objects, H, W = ps.shape
         bg_prob = torch.prod(1 - ps, dim=0).unsqueeze(0).unsqueeze(0)  # bg prob
         em = torch.cat([bg_prob, ps.unsqueeze(0)], dim=1)
@@ -317,7 +413,7 @@ class SwiftNet(nn.Module):
         _, K, H, W = masks.shape
 
         (frame, masks), pad = pad_divide_by(
-            [frame, masks], 16, (frame.size()[2], frame.size()[3])
+            [frame, masks], 64, (frame.size()[2], frame.size()[3])
         )
 
         B_list = {"f": [], "m": [], "o": []}
@@ -336,20 +432,38 @@ class SwiftNet(nn.Module):
             B_[arg] = torch.cat(B_list[arg], dim=0)
 
         if first_frame_flag == True:
-            r4, r3, r2, c1, _ = self.Encoder(B_["f"])
+            logging.info("First frame flag is set to True")
+            r4, r3, r2, c1, _ = self.Encoder(B_["f"])  # r4, r3, r2, c1, f
+            logging.info(
+                "Encoder for FFF. r4: \nshape{}, \nr3: \nshape{}, \nr2:\nshape{}, \nc1:\nshape{}, \n".format(
+                    r4.size(), r3.size(), r2.size(), c1.size()
+                )
+            )
 
+        logging.info("Entering LAE ")
         r4, _, _, _, _ = self.LAE(r4, r3, r2, c1, B_["m"], B_["o"])
+        logging.info("LAE out r4: \nshape: {}".format(r4.size()))
+
         k4, v4 = self.KV_M_r4(r4)
+        logging.info(
+            "KVMr4 k4: \nshape: {}\nv4: \nshape: {}".format(k4.size(), v4.size())
+        )
         k4 = k4.unsqueeze(0).unsqueeze(3)
         v4 = v4.unsqueeze(0).unsqueeze(3)
         k4 = k4.reshape(num_objects, 32, -1)
         v4 = v4.reshape(num_objects, 128, -1)
+        logging.info(
+            "After unsqueeze and reshape k4: \nshape: {}\nv4: \nshape: {}".format(
+                k4.size(), v4.size()
+            )
+        )
+
         return k4, v4
 
     def segment(self, frame, keys, values, num_objects):
         num_objects = num_objects[0].item()
-        _, keydim, N = keys.shape
-        [frame], pad = pad_divide_by([frame], 16, (frame.size()[2], frame.size()[3]))
+        # _, keydim, N = keys.shape
+        [frame], pad = pad_divide_by([frame], 64, (frame.size()[2], frame.size()[3]))
         r4, r3, r2, c1, _ = self.Encoder(frame)
         k4, v4 = self.KV_Q_r4(r4)
         k4e, v4e = k4.expand(num_objects, -1, -1, -1), v4.expand(
@@ -370,7 +484,10 @@ class SwiftNet(nn.Module):
         return logit, r4, r3, r2, c1
 
     def forward(self, *args, **kwargs):
+        logging.info("SwiftNet: forward pass {}".format(len(args) + len(kwargs)))
         if len(args) + len(kwargs) <= 4:
+            logging.info("SwiftNet-forward: entering segment function")
             return self.segment(*args, **kwargs)
         else:
+            logging.info("SwiftNet-forward: entering memorize function")
             return self.memorize(*args, **kwargs)

@@ -1,36 +1,45 @@
 from __future__ import division
-import torch
-# from torch.autograd import Variable
-from torch.utils import data
-import torch.nn as nn
-import torch.nn.functional as F
-# import torch.nn.init as init
-# import torch.utils.model_zoo as model_zoo
-# from torchvision import models
 
-# general libs
-# import cv2
-from PIL import Image
+import argparse
+
 # import numpy as np
 # import math
 # import time
 # import tqdm
 import os
-import argparse
+
 # import copy
 import random
 
+import torch
+import torch.nn as nn
+import torch.nn.functional as F
+
+# general libs
+# import cv2
+from PIL import Image
+
+# from torch.autograd import Variable
+from torch.utils import data
 
 ### My libs
 from dataset.dataset import DAVIS_MO_Test
 from dataset.davis import DAVIS_MO_Train
 from dataset.youtube import Youtube_MO_Train
-from swiftnet import SwiftNet
 from eval import evaluate
+from swiftnet import SwiftNet
+
+# import torch.nn.init as init
+# import torch.utils.model_zoo as model_zoo
+# from torchvision import models
+
+
 # from utils.helpers import overlay_davis
 
 
 def get_arguments():
+    """This function gets all the arguments from the python command"""
+
     parser = argparse.ArgumentParser(description="SST")
     parser.add_argument(
         "-Ddavis",
@@ -113,7 +122,7 @@ pth_path = args.resume_path
 
 print("Loading weights:", pth_path)
 
-model.load_state_dict(torch.load(pth_path))
+model.load_state_dict(torch.load(pth_path), strict=False)
 
 if torch.cuda.is_available():
     model.cuda()
@@ -128,11 +137,11 @@ for module in model.modules():
 
 criterion = nn.CrossEntropyLoss()
 criterion.cuda()
-optimizer = torch.optim.Adam(model.parameters(), lr=1e-5, eps=1e-8, betas=[0.9, 0.999])
+optimizer = torch.optim.Adam(model.parameters(), lr=1e-8, eps=1e-8, betas=[0.9, 0.999])
 
 
 def adjust_learning_rate(iteration, power=0.9):
-    lr = 1e-5 * pow((1 - 1.0 * iteration / args.total_iter), power)
+    lr = 1e-8 * pow((1 - 1.0 * iteration / args.total_iter), power)
     return lr
 
 
@@ -148,11 +157,13 @@ max_jf = 0
 
 for iter_ in range(args.total_iter):
     if (iter_ + 1) % 1000 == 0:
+        # adjust learning rate every 1000 iterations
         lr = adjust_learning_rate(iter_)
         for param_group in optimizer.param_groups:
             param_group["lr"] = lr
 
     if (iter_ + 1) % change_skip_step == 0:
+        # change skip
         if skip_n < max_skip:
             skip_n += 1
         Trainset1.change_skip(skip_n // 5)
@@ -160,6 +171,7 @@ for iter_ in range(args.total_iter):
         Trainset.change_skip(skip_n)
         loader_iter = iter(Trainloader)
 
+    # based on a rate get the next set of frames, masks, num_objects, info from either DAVIS or YOUTUBEVOS
     if random.random() < rate:
         try:
             Fs, Ms, num_objects, info = next(loader_iter)
@@ -180,18 +192,31 @@ for iter_ in range(args.total_iter):
     Es = torch.zeros_like(Ms)
     Es[:, :, 0] = Ms[:, :, 0]
 
-    n1_key, n1_value = model(Fs[:, :, 0], Es[:, :, 0], torch.tensor([num_objects]))
-    n2_logit = model(Fs[:, :, 1], n1_key, n1_value, torch.tensor([num_objects]))
+    print("MY NUM OB:", num_objects)
 
+    n1_key, n1_value = model(
+        Fs[:, :, 0],
+        Es[:, :, 0],
+        None,
+        None,
+        None,
+        None,
+        torch.tensor([num_objects]),
+        first_frame_flag=True,
+    )
+
+    n2_logit, r4, r3, r2, c1 = model(
+        Fs[:, :, 0], n1_key, n1_value, torch.tensor([num_objects])
+    )
     n2_label = torch.argmax(Ms[:, :, 1], dim=1).long().cuda()
     n2_loss = criterion(n2_logit, n2_label)
 
-    Es[:, :, 1] = F.softmax(n2_logit, dim=1).detach()
+    Es[:, :, 1] = F.softmax(n2_logit, dim=1)
 
-    n2_key, n2_value = model(Fs[:, :, 1], Es[:, :, 1], torch.tensor([num_objects]))
+    n2_key, n2_value = model(Fs[:, :, 1], Es[:, :, 1], r4, r3, r2, c1, num_objects)
     n12_keys = torch.cat([n1_key, n2_key], dim=3)
     n12_values = torch.cat([n1_value, n2_value], dim=3)
-    n3_logit = model(Fs[:, :, 2], n12_keys, n12_values, torch.tensor([num_objects]))
+    n3_logit = model(Fs[:, :, 2], n12_keys, n12_values, num_objects)
 
     n3_label = torch.argmax(Ms[:, :, 2], dim=1).long().cuda()
     n3_loss = criterion(n3_logit, n3_label)
