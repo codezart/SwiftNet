@@ -230,7 +230,7 @@ def main():
                 Es.size(), Es[:, :, 0].size()
             )
         )
-
+        # Start training with first frame (memorize module)
         n1_key, n1_value = model(
             Fs[:, :, 0],
             Es[:, :, 0],
@@ -241,6 +241,8 @@ def main():
             torch.tensor([num_objects]),
             first_frame_flag=True,
         )
+
+        # apply 2nd frame to model to segment to generate mask for frame 2
         n2_logit, r4, r3, r2, c1 = model(
             Fs[:, :, 1], n1_key, n1_value, torch.tensor([num_objects])
         )
@@ -250,15 +252,20 @@ def main():
         Es[:, : num_objects + 1, 1] = F.softmax(
             n2_logit, dim=1
         )  # swiftnet has num objects limited to 3. STM used full 11 objects (10 + 1 background)
+
+        # Take second frame output (mask) and second frame to model (memorize)
         n2_key, n2_value = model(Fs[:, :, 1], Es[:, :, 1], r4, r3, r2, c1, num_objects)
         n12_keys = torch.cat([n1_key, n2_key], dim=2)
         n12_values = torch.cat([n1_value, n2_value], dim=2)
+
+        # Apply third frame as input for segment to generate third frame mask output 
         n3_logit, r4, r3, r2, c1 = model(Fs[:, :, 2], n12_keys, n12_values, num_objects)
 
         n3_label = torch.argmax(Ms[:, :, 2], dim=1).long().cuda()
         n3_loss = criterion(n3_logit, n3_label)
         Es[:, : num_objects + 1, 2] = F.softmax(n3_logit, dim=1)
 
+        # calculate loss of 2nd frame mask pred and 3rd frame mask pred
         loss = n2_loss + n3_loss
 
         loss.backward()
