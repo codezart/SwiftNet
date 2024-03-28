@@ -90,14 +90,14 @@ def main():
     change_skip_step = args.change_skip_step
 
     logging.info("Saved all arguments")
-
+    
     # get sample palette for DAVIS mask
     palette = Image.open(
         DAVIS_ROOT + "/Annotations/480p/blackswan/00000.png"
     ).getpalette()
 
     logging.info("Saved DAVIS mask palette")
-
+    print("in main saved args, and pallete")
     # DAVIS Train Get data.Dataset and add to dataloader to get iter
     davis_trainset = DAVIS_MO_Train(
         DAVIS_ROOT,
@@ -111,7 +111,7 @@ def main():
     davis_trainloader_iter = iter(davis_trainloader)
 
     logging.info("Acquired DAVIS train dataset")
-
+    print("Acquired DAVIS train dataset")
     # Youtube Train Get data.Dataset and add to dataloader to get iter
     youtube_trainset = Youtube_MO_Train("{}train/".format(YOUTUBE_ROOT))
     youtube_trainloader = data.DataLoader(
@@ -120,6 +120,7 @@ def main():
     youtube_trainloader_iter = iter(youtube_trainloader)
 
     logging.info("Acquired Youtube train dataset")
+    print("Acquired Youtube train dataset")
 
     # Davis Test get data.Dataset
     davis_testloader = DAVIS_MO_Test(
@@ -170,7 +171,7 @@ def main():
     max_skip = 25
     skip_n = 0
     max_jf = 0
-
+    print("training loop begins")
     # train model total_iter
     for iter_ in tqdm.tqdm(range(total_iter)):
         # print(iter_)
@@ -319,7 +320,7 @@ def main():
 if __name__ == "__main__":
     now = datetime.now()
     logging.basicConfig(
-        filename="train{}.log".format(now.strftime("_%Y_%m_%d_%H_%M_%S")),
+        filename="./logs/train{}.log".format(now.strftime("_%Y_%m_%d_%H_%M_%S")),
         filemode="a",
         level=logging.DEBUG,
         format="%(asctime)s - %(levelname)s - %(message)s",
